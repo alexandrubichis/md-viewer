@@ -4,6 +4,12 @@ All notable changes to MD Viewer are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] - 2026-10-22
+
+### Fixed
+- Works on Ubuntu 24.04 (libadwaita 1.5). The system accent color is used on
+  libadwaita 1.6 and newer; older versions use the standard Adwaita blue.
+
 ## [1.2.0] - 2026-10-22
 
 ### Added
@@ -38,6 +44,7 @@ All notable changes to MD Viewer are listed here. The format follows
 - Raw HTML in documents is sanitized; scripts don't run.
 - `.deb` package with app icon, menu entry and App Center metadata.
 
+[1.2.1]: https://github.com/alexandrubichis/md-viewer/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/alexandrubichis/md-viewer/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/alexandrubichis/md-viewer/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/alexandrubichis/md-viewer/releases/tag/v1.0.0

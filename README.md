@@ -19,11 +19,11 @@ Download `mdview_<version>_all.deb` from the
 double-click it, or run:
 
 ```sh
-sudo apt install ./mdview_1.2.0_all.deb
+sudo apt install ./mdview_1.2.1_all.deb
 ```
 
 apt installs the dependencies (GTK 4, libadwaita, WebKitGTK 6) automatically.
-Requires Ubuntu 24.10 or newer (libadwaita 1.6+).
+Requires Ubuntu 24.04 or newer.
 
 Then open a Markdown file with **Open With → MD Viewer**, or from a terminal:
 

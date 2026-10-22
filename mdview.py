@@ -14,7 +14,7 @@ from gi.repository import Adw, Gdk, Gio, GLib, Gtk, WebKit  # noqa: E402
 
 APP_ID = "io.github.alexandrubichis.MdView"
 APP_NAME = "MD Viewer"
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 ASSETS = os.path.join(HERE, "assets")
@@ -25,6 +25,12 @@ MD_MIME_TYPES = ("text/markdown", "text/x-markdown")
 
 # Adwaita "view" colors, so the page matches the rest of the window.
 PAGE_BG = {False: "#ffffff", True: "#1d1d20"}
+
+# System accent colors need libadwaita 1.6 (GNOME 47). Older versions,
+# such as Ubuntu 24.04's 1.5, always use the Adwaita blue.
+HAS_ACCENT = hasattr(Adw.StyleManager, "get_accent_color_rgba")
+DEFAULT_ACCENT = "#3584e4"
+DEFAULT_LINK = {False: "#1c71d8", True: "#78aeed"}
 
 ZOOM_MIN, ZOOM_MAX, ZOOM_STEP = 0.5, 3.0, 0.1
 
@@ -128,7 +134,8 @@ class Window(Adw.ApplicationWindow):
 
         style = Adw.StyleManager.get_default()
         style.connect("notify::dark", lambda *_: self._push_theme())
-        style.connect("notify::accent-color", lambda *_: self._push_theme())
+        if HAS_ACCENT:
+            style.connect("notify::accent-color", lambda *_: self._push_theme())
         self._push_theme()
 
     # UI
@@ -362,14 +369,18 @@ class Window(Adw.ApplicationWindow):
     def _push_theme(self):
         style = Adw.StyleManager.get_default()
         dark = style.get_dark()
-        accent = style.get_accent_color_rgba().to_string()
-        link = Adw.AccentColor.to_standalone_rgba(style.get_accent_color(), dark)
+        if HAS_ACCENT:
+            accent = style.get_accent_color_rgba().to_string()
+            link = Adw.AccentColor.to_standalone_rgba(style.get_accent_color(), dark)
+            link = link.to_string()
+        else:
+            accent, link = DEFAULT_ACCENT, DEFAULT_LINK[dark]
 
         bg = Gdk.RGBA()
         bg.parse(PAGE_BG[dark])
         self.view.set_background_color(bg)
         if self._page_ready:
-            args = ", ".join(json.dumps(a) for a in (dark, accent, link.to_string()))
+            args = ", ".join(json.dumps(a) for a in (dark, accent, link))
             self._run_js(f"mdview.setTheme({args});")
 
     def push_page_width(self):
