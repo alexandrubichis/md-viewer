@@ -1,8 +1,9 @@
 #!/usr/bin/python3
 """Dev tool: open a Markdown file, save screenshots, then quit.
 
-Usage: tools/snapshot.py FILE.md OUT_PREFIX [light|dark]
+Usage: tools/snapshot.py FILE.md OUT_PREFIX [light|dark] [narrow|normal|wide|full]
 Writes OUT_PREFIX-page.png (the whole document) and OUT_PREFIX-window.png.
+Uses a 1200x900 window and doesn't change the saved settings.
 """
 
 import os
@@ -17,11 +18,15 @@ from mdview import Adw, Gio, GLib, Gtk, WebKit  # noqa: E402
 def main():
     md_path, out = sys.argv[1], sys.argv[2]
     scheme = sys.argv[3] if len(sys.argv) > 3 else None
+    width = sys.argv[4] if len(sys.argv) > 4 else "normal"
 
     app = mdview.Application()
     app.set_flags(app.get_flags() | Gio.ApplicationFlags.NON_UNIQUE)
 
     def on_startup(_app):
+        app.settings.update(
+            page_width=width, window_width=1200, window_height=900, maximized=False
+        )
         if scheme:
             forced = Adw.ColorScheme.FORCE_DARK if scheme == "dark" else Adw.ColorScheme.FORCE_LIGHT
             Adw.StyleManager.get_default().set_color_scheme(forced)

@@ -3,7 +3,10 @@
 A simple Markdown viewer for GNOME. Open a `.md` file and read it in a clean
 window. No browser, no editor.
 
-- Follows the system light/dark style and accent color, like other GNOME apps
+- Follows the system light/dark style and accent color, like other GNOME apps,
+  or a fixed Light or Dark style chosen in the menu
+- Adjustable page width (Narrow, Normal, Wide, Full Width); wide tables and
+  code blocks grow wider instead of scrolling sideways
 - Tables, task lists and syntax-highlighted code
 - Reloads automatically when the file is saved, keeping your place
 - Links open in your browser; links to other `.md` files open in the viewer
@@ -16,7 +19,7 @@ Download `mdview_<version>_all.deb` from the
 double-click it, or run:
 
 ```sh
-sudo apt install ./mdview_1.0.0_all.deb
+sudo apt install ./mdview_1.2.0_all.deb
 ```
 
 apt installs the dependencies (GTK 4, libadwaita, WebKitGTK 6) automatically.
@@ -35,6 +38,8 @@ mdview README.md
 | <kbd>Ctrl</kbd>+<kbd>O</kbd> | Open file    |
 | <kbd>F5</kbd> / <kbd>Ctrl</kbd>+<kbd>R</kbd> | Reload |
 | <kbd>Ctrl</kbd>+<kbd>+</kbd> / <kbd>-</kbd> / <kbd>0</kbd> | Zoom in / out / reset |
+| <kbd>Ctrl</kbd>+mouse wheel | Zoom in / out |
+| <kbd>Ctrl</kbd>+<kbd>]</kbd> / <kbd>Ctrl</kbd>+<kbd>[</kbd> | Wider / narrower page |
 | <kbd>Ctrl</kbd>+<kbd>W</kbd> / <kbd>Esc</kbd> | Close window |
 | <kbd>Ctrl</kbd>+<kbd>Q</kbd> | Quit         |
 

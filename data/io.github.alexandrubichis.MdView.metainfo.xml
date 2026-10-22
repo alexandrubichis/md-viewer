@@ -27,6 +27,22 @@
     <mediatype>text/markdown</mediatype>
   </provides>
   <releases>
-    <release version="1.0.0" date="2026-10-22"/>
+    <release version="1.2.0" date="2026-10-22">
+      <description>
+        <p>Choose the page width and the light or dark style from the main menu.
+        Wide tables and code blocks grow wider instead of scrolling sideways, and
+        your settings and window size are remembered.</p>
+      </description>
+    </release>
+    <release version="1.1.0" date="2026-10-22">
+      <description>
+        <p>Zoom in and out with Ctrl and the mouse wheel.</p>
+      </description>
+    </release>
+    <release version="1.0.0" date="2026-10-22">
+      <description>
+        <p>First release.</p>
+      </description>
+    </release>
   </releases>
 </component>

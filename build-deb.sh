@@ -18,6 +18,7 @@ cp data/$APP_ID.desktop "$ROOT/usr/share/applications/"
 cp data/$APP_ID.metainfo.xml "$ROOT/usr/share/metainfo/"
 cp data/icons/hicolor/scalable/apps/$APP_ID.svg "$ROOT/usr/share/icons/hicolor/scalable/apps/"
 cp packaging/copyright "$ROOT/usr/share/doc/mdview/"
+cp CHANGELOG.md "$ROOT/usr/share/doc/mdview/"
 
 cat > "$ROOT/usr/bin/mdview" <<'EOF'
 #!/bin/sh

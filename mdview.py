@@ -14,7 +14,7 @@ from gi.repository import Adw, Gdk, Gio, GLib, Gtk, WebKit  # noqa: E402
 
 APP_ID = "io.github.alexandrubichis.MdView"
 APP_NAME = "MD Viewer"
-VERSION = "1.0.0"
+VERSION = "1.2.0"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 ASSETS = os.path.join(HERE, "assets")
@@ -27,6 +27,25 @@ MD_MIME_TYPES = ("text/markdown", "text/x-markdown")
 PAGE_BG = {False: "#ffffff", True: "#1d1d20"}
 
 ZOOM_MIN, ZOOM_MAX, ZOOM_STEP = 0.5, 3.0, 0.1
+
+PAGE_WIDTHS = ("narrow", "normal", "wide", "full")
+THEMES = {
+    "system": Adw.ColorScheme.DEFAULT,
+    "light": Adw.ColorScheme.FORCE_LIGHT,
+    "dark": Adw.ColorScheme.FORCE_DARK,
+}
+# Settings that are one of a fixed set of choices, each shown as a radio
+# group in the app menu through a stateful action ("page_width" -> "app.page-width").
+CHOICES = {"page_width": PAGE_WIDTHS, "theme": tuple(THEMES)}
+
+SETTINGS_PATH = os.path.join(GLib.get_user_config_dir(), "mdview", "settings.json")
+DEFAULT_SETTINGS = {
+    "theme": "system",
+    "page_width": "normal",
+    "window_width": 860,
+    "window_height": 920,
+    "maximized": False,
+}
 
 # Context menu entries worth keeping; navigation entries make no sense here.
 KEEP_MENU_ACTIONS = {
@@ -43,6 +62,34 @@ def is_markdown(gfile):
     return (gfile.get_basename() or "").lower().endswith(MD_SUFFIXES)
 
 
+def load_settings():
+    settings = dict(DEFAULT_SETTINGS)
+    try:
+        with open(SETTINGS_PATH, encoding="utf-8") as f:
+            saved = json.load(f)
+    except (OSError, ValueError):
+        return settings
+    if isinstance(saved, dict):
+        for key, default in DEFAULT_SETTINGS.items():
+            if type(saved.get(key)) is type(default):
+                settings[key] = saved[key]
+    for key, choices in CHOICES.items():
+        if settings[key] not in choices:
+            settings[key] = DEFAULT_SETTINGS[key]
+    return settings
+
+
+def save_settings(settings):
+    try:
+        os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
+        tmp = SETTINGS_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=2)
+        os.replace(tmp, SETTINGS_PATH)
+    except OSError as e:
+        print(f"mdview: could not save settings: {e}", file=sys.stderr)
+
+
 def display_dir(gfile):
     parent = gfile.get_parent()
     if parent is None or parent.get_path() is None:
@@ -56,7 +103,15 @@ def display_dir(gfile):
 
 class Window(Adw.ApplicationWindow):
     def __init__(self, app):
-        super().__init__(application=app, default_width=860, default_height=920)
+        settings = app.settings
+        super().__init__(
+            application=app,
+            default_width=settings["window_width"],
+            default_height=settings["window_height"],
+        )
+        if settings["maximized"]:
+            self.maximize()
+        self.connect("close-request", lambda *_: app.remember_window(self))
         self.file = None
         self._text = ""
         self._base_uri = None
@@ -99,6 +154,23 @@ class Window(Adw.ApplicationWindow):
         section.append("Zoom Out", "win.zoom-out")
         section.append("Reset Zoom", "win.zoom-reset")
         menu.append_section(None, section)
+        section = Gio.Menu()
+        for label, name in (
+            ("Narrow", "narrow"),
+            ("Normal", "normal"),
+            ("Wide", "wide"),
+            ("Full Width", "full"),
+        ):
+            section.append(label, f"app.page-width::{name}")
+        menu.append_section("Page Width", section)
+        section = Gio.Menu()
+        for label, name in (
+            ("Follow System", "system"),
+            ("Light", "light"),
+            ("Dark", "dark"),
+        ):
+            section.append(label, f"app.theme::{name}")
+        menu.append_section("Style", section)
         section = Gio.Menu()
         section.append(f"About {APP_NAME}", "app.about")
         menu.append_section(None, section)
@@ -148,6 +220,15 @@ class Window(Adw.ApplicationWindow):
         drop.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
         drop.connect("drop", self._on_drop)
         self.add_controller(drop)
+
+        # Ctrl + mouse wheel zooms; capture phase again, so the page doesn't scroll.
+        scroll = Gtk.EventControllerScroll(
+            flags=Gtk.EventControllerScrollFlags.VERTICAL
+            | Gtk.EventControllerScrollFlags.DISCRETE
+        )
+        scroll.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        scroll.connect("scroll", self._on_scroll)
+        self.add_controller(scroll)
 
     def _add_actions(self):
         for name, callback in (
@@ -291,10 +372,16 @@ class Window(Adw.ApplicationWindow):
             args = ", ".join(json.dumps(a) for a in (dark, accent, link.to_string()))
             self._run_js(f"mdview.setTheme({args});")
 
+    def push_page_width(self):
+        if self._page_ready:
+            width = self.get_application().settings["page_width"]
+            self._run_js(f"mdview.setWidth({json.dumps(width)});")
+
     def _on_load_changed(self, _view, event):
         if event == WebKit.LoadEvent.FINISHED:
             self._page_ready = True
             self._push_theme()
+            self.push_page_width()
             self._push_render(keep_scroll=False)
 
     def _on_decide_policy(self, _view, decision, decision_type):
@@ -327,6 +414,13 @@ class Window(Adw.ApplicationWindow):
                 menu.remove(item)
         return menu.get_n_items() == 0  # True suppresses an empty menu.
 
+    def _on_scroll(self, controller, _dx, dy):
+        ctrl = controller.get_current_event_state() & Gdk.ModifierType.CONTROL_MASK
+        if not ctrl or dy == 0 or self.stack.get_visible_child_name() != "document":
+            return False
+        self._zoom(-ZOOM_STEP if dy > 0 else ZOOM_STEP)
+        return True
+
     def _zoom(self, delta):
         if delta is None:
             level = 1.0
@@ -340,18 +434,35 @@ class Application(Adw.Application):
         super().__init__(
             application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_OPEN
         )
+        self.settings = dict(DEFAULT_SETTINGS)
 
     def do_startup(self):
         Adw.Application.do_startup(self)
         GLib.set_application_name(APP_NAME)
+        self.settings = load_settings()
         if os.path.isdir(DEV_ICONS):  # Running from the source tree.
             display = Gdk.Display.get_default()
             Gtk.IconTheme.get_for_display(display).add_search_path(DEV_ICONS)
 
-        for name, callback in (("about", self._on_about), ("quit", lambda *_: self.quit())):
+        for name, callback in (
+            ("about", self._on_about),
+            ("quit", self._on_quit),
+            ("wider", lambda *_: self._step_page_width(1)),
+            ("narrower", lambda *_: self._step_page_width(-1)),
+        ):
             action = Gio.SimpleAction(name=name)
             action.connect("activate", callback)
             self.add_action(action)
+
+        for key in CHOICES:
+            action = Gio.SimpleAction.new_stateful(
+                key.replace("_", "-"),
+                GLib.VariantType.new("s"),
+                GLib.Variant.new_string(self.settings[key]),
+            )
+            action.connect("change-state", self._on_choice)
+            self.add_action(action)
+        Adw.StyleManager.get_default().set_color_scheme(THEMES[self.settings["theme"]])
 
         for action, accels in (
             ("win.open", ["<Ctrl>o"]),
@@ -359,6 +470,8 @@ class Application(Adw.Application):
             ("win.zoom-in", ["<Ctrl>plus", "<Ctrl>equal", "<Ctrl>KP_Add"]),
             ("win.zoom-out", ["<Ctrl>minus", "<Ctrl>KP_Subtract"]),
             ("win.zoom-reset", ["<Ctrl>0", "<Ctrl>KP_0"]),
+            ("app.wider", ["<Ctrl>bracketright"]),
+            ("app.narrower", ["<Ctrl>bracketleft"]),
             ("window.close", ["<Ctrl>w", "Escape"]),
             ("app.quit", ["<Ctrl>q"]),
         ):
@@ -379,6 +492,41 @@ class Application(Adw.Application):
             window = Window(self)
             window.open_file(gfile)
             window.present()
+
+    def remember_window(self, window):
+        self.settings["maximized"] = window.is_maximized()
+        if not window.is_maximized():
+            width, height = window.get_default_size()
+            if width > 0 and height > 0:
+                self.settings["window_width"] = width
+                self.settings["window_height"] = height
+        save_settings(self.settings)
+        return False  # Let the window close.
+
+    def _on_quit(self, *_):
+        # Close windows one by one so each one saves its size.
+        for window in list(self.get_windows()):
+            window.close()
+
+    def _on_choice(self, action, value):
+        key, choice = action.get_name().replace("-", "_"), value.get_string()
+        if choice not in CHOICES[key]:
+            return
+        action.set_state(value)
+        self.settings[key] = choice
+        save_settings(self.settings)
+        if key == "theme":
+            # Windows follow through StyleManager's notify::dark.
+            Adw.StyleManager.get_default().set_color_scheme(THEMES[choice])
+        else:
+            for window in self.get_windows():
+                if isinstance(window, Window):
+                    window.push_page_width()
+
+    def _step_page_width(self, step):
+        index = PAGE_WIDTHS.index(self.settings["page_width"]) + step
+        if 0 <= index < len(PAGE_WIDTHS):
+            self.change_action_state("page-width", GLib.Variant.new_string(PAGE_WIDTHS[index]))
 
     def _on_about(self, *_):
         Adw.AboutDialog(

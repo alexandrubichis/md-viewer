@@ -39,7 +39,7 @@ def greet(name: str) -> str:
 ```
 
 ```sh
-sudo apt install ./mdview_1.0.0_all.deb
+sudo apt install ./mdview_1.2.0_all.deb
 ```
 
 ```
@@ -53,6 +53,18 @@ Plain block with no language.
 | Tables         | ✅     | With horizontal scroll   |
 | Live reload    | ✅     | Keeps the scroll position |
 | Math           | ⏳     | Planned for version 2    |
+
+### Wide table
+
+| Version | Date       | Platform        | Toolkit           | Renderer          | Package format  | Highlights                                   |
+|---------|------------|-----------------|-------------------|-------------------|-----------------|----------------------------------------------|
+| 1.0.0   | 2026-10-22 | Ubuntu 24.10+   | GTK 4, libadwaita | WebKitGTK 6       | .deb            | First release                                |
+| 1.1.0   | 2026-10-22 | Ubuntu 24.10+   | GTK 4, libadwaita | WebKitGTK 6       | .deb            | Ctrl + mouse wheel zoom                      |
+| 1.2.0   | 2026-10-22 | Ubuntu 24.10+   | GTK 4, libadwaita | WebKitGTK 6       | .deb            | Page width setting, wide tables and code     |
+
+```python
+settings = {"page_width": "normal", "window_width": 860, "window_height": 920, "maximized": False, "comment": "a long line"}
+```
 
 ## Image
 
