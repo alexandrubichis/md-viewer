@@ -1,0 +1,201 @@
+/* Reading layout in Adwaita colors.
+   --accent and --link are set from the system accent color. */
+
+:root {
+  --bg: #ffffff;
+  --fg: rgb(0 0 6 / 80%);
+  --fg-strong: rgb(0 0 6 / 92%);
+  --fg-dim: rgb(0 0 6 / 55%);
+  --border: rgb(0 0 6 / 12%);
+  --code-bg: rgb(0 0 6 / 5%);
+  --accent: #3584e4;
+  --link: #1c71d8;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #1d1d20;
+  --fg: rgb(255 255 255 / 88%);
+  --fg-strong: #ffffff;
+  --fg-dim: rgb(255 255 255 / 55%);
+  --border: rgb(255 255 255 / 12%);
+  --code-bg: rgb(255 255 255 / 7%);
+  color-scheme: dark;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  color: var(--fg);
+  font-family: system-ui, "Ubuntu Sans", Cantarell, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 28px 24px 72px;
+}
+
+main > :first-child {
+  margin-top: 0;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* Text */
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--fg-strong);
+  line-height: 1.25;
+  margin: 1.6em 0 0.5em;
+}
+
+h1 { font-size: 1.85em; font-weight: 800; letter-spacing: -0.01em; }
+h2 { font-size: 1.45em; font-weight: 700; }
+h3 { font-size: 1.2em; font-weight: 700; }
+h4 { font-size: 1.05em; font-weight: 700; }
+h5, h6 { font-size: 1em; font-weight: 700; color: var(--fg-dim); }
+
+p, ul, ol, dl, table, pre, blockquote, figure {
+  margin: 0 0 1em;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+strong { color: var(--fg-strong); }
+
+hr {
+  border: 0;
+  height: 1px;
+  background: var(--border);
+  margin: 2em 0;
+}
+
+/* Lists */
+
+ul, ol {
+  padding-left: 1.6em;
+}
+
+li + li, li > ul, li > ol {
+  margin-top: 0.25em;
+}
+
+li > ul, li > ol {
+  margin-bottom: 0;
+}
+
+li::marker {
+  color: var(--fg-dim);
+}
+
+li.task {
+  list-style: none;
+  margin-left: -1.4em;
+}
+
+li.task > input {
+  margin: 0 0.45em 0 0;
+  vertical-align: -0.1em;
+  accent-color: var(--accent);
+}
+
+/* Quotes: accent bar on a tinted block */
+
+blockquote {
+  margin-left: 0;
+  margin-right: 0;
+  padding: 0.6em 1em;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* Code */
+
+code, pre, kbd, samp {
+  font-family: ui-monospace, "Ubuntu Sans Mono", "DejaVu Sans Mono", monospace;
+  font-size: 0.86em;
+}
+
+:not(pre) > code {
+  padding: 0.12em 0.36em;
+  border-radius: 6px;
+  background: var(--code-bg);
+}
+
+pre {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--code-bg);
+  overflow-x: auto;
+  line-height: 1.5;
+}
+
+pre code,
+pre code.hljs {
+  padding: 0;
+  font-size: inherit;
+  background: transparent;
+}
+
+kbd {
+  padding: 0.1em 0.4em;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+}
+
+/* Tables */
+
+table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.94em;
+}
+
+th, td {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+}
+
+th {
+  color: var(--fg-strong);
+  background: var(--code-bg);
+  text-align: left;
+}
+
+/* Media */
+
+img, video {
+  max-width: 100%;
+  height: auto;
+}
+
+p > img:only-child {
+  display: block;
+  margin: 0 auto;
+  border-radius: 10px;
+}

@@ -1,0 +1,12 @@
+Package: mdview
+Version: @VERSION@
+Section: text
+Priority: optional
+Architecture: all
+Installed-Size: @SIZE@
+Depends: python3 (>= 3.10), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1 (>= 1.6), gir1.2-webkit-6.0
+Maintainer: Alexandru Bichis <alex.bichis@gmail.com>
+Description: Simple Markdown viewer for GNOME
+ Opens Markdown files in a clean GNOME window that follows the system
+ light or dark style. Supports tables, task lists, syntax-highlighted
+ code and reloads automatically when the file changes.

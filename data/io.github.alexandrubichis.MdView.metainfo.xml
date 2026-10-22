@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.alexandrubichis.MdView</id>
+  <name>MD Viewer</name>
+  <summary>View Markdown documents</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <developer id="io.github.alexandrubichis">
+    <name>Alexandru Bichis</name>
+  </developer>
+  <url type="homepage">https://github.com/alexandrubichis/md-viewer</url>
+  <url type="bugtracker">https://github.com/alexandrubichis/md-viewer/issues</url>
+  <content_rating type="oars-1.1"/>
+  <description>
+    <p>
+      A simple, fast Markdown viewer. Open a .md file and read it in a clean
+      window that follows the system light or dark style.
+    </p>
+    <ul>
+      <li>Tables, task lists and syntax-highlighted code</li>
+      <li>Reloads automatically when the file is saved</li>
+      <li>Opens links in your default browser</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.alexandrubichis.MdView.desktop</launchable>
+  <provides>
+    <binary>mdview</binary>
+    <mediatype>text/markdown</mediatype>
+  </provides>
+  <releases>
+    <release version="1.0.0" date="2026-10-22"/>
+  </releases>
+</component>

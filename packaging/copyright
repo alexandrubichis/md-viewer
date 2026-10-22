@@ -1,0 +1,18 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: mdview
+
+Files: *
+Copyright: 2026 Alexandru Bichis
+License: TBD
+
+Files: assets/vendor/marked.min.js
+Copyright: 2011-2025 Christopher Jeffrey and marked contributors
+License: MIT
+
+Files: assets/vendor/purify.min.js
+Copyright: Cure53 and other contributors
+License: Apache-2.0 or MPL-2.0
+
+Files: assets/vendor/highlight.min.js assets/vendor/hljs-*.css
+Copyright: 2006-2024 Josh Goebel and other contributors
+License: BSD-3-Clause
