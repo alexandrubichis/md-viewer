@@ -4,6 +4,23 @@ All notable changes to MD Viewer are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-11-06
+
+### Added
+- Back and forward through followed links, returning to the same scroll
+  position: header bar buttons, <kbd>Alt</kbd>+<kbd>←</kbd> /
+  <kbd>Alt</kbd>+<kbd>→</kbd>, or the mouse side buttons. Links to headings
+  in the same document are part of the history too.
+- Find in document (<kbd>Ctrl</kbd>+<kbd>F</kbd>) with a match count.
+  <kbd>Enter</kbd> / <kbd>Shift</kbd>+<kbd>Enter</kbd> or
+  <kbd>Ctrl</kbd>+<kbd>G</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>
+  go to the next / previous match.
+
+### Changed
+- <kbd>Esc</kbd> closes the find bar first, then the window.
+- A link to a missing file shows a notification instead of replacing the
+  current document with an error page.
+
 ## [1.2.1] - 2026-10-22
 
 ### Fixed
@@ -44,6 +61,7 @@ All notable changes to MD Viewer are listed here. The format follows
 - Raw HTML in documents is sanitized; scripts don't run.
 - `.deb` package with app icon, menu entry and App Center metadata.
 
+[1.3.0]: https://github.com/alexandrubichis/md-viewer/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/alexandrubichis/md-viewer/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/alexandrubichis/md-viewer/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/alexandrubichis/md-viewer/compare/v1.0.0...v1.1.0

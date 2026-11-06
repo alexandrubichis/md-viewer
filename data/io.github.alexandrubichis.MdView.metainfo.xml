@@ -27,6 +27,12 @@
     <mediatype>text/markdown</mediatype>
   </provides>
   <releases>
+    <release version="1.3.0" date="2026-11-06">
+      <description>
+        <p>Go back and forward through followed links, and find text in the
+        document with Ctrl+F.</p>
+      </description>
+    </release>
     <release version="1.2.1" date="2026-10-22">
       <description>
         <p>Works on Ubuntu 24.04.</p>

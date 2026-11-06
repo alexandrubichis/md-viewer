@@ -9,7 +9,9 @@ window. No browser, no editor.
   code blocks grow wider instead of scrolling sideways
 - Tables, task lists and syntax-highlighted code
 - Reloads automatically when the file is saved, keeping your place
-- Links open in your browser; links to other `.md` files open in the viewer
+- Links open in your browser; links to other `.md` files open in the viewer,
+  with back and forward like a browser
+- Find text in the document with <kbd>Ctrl</kbd>+<kbd>F</kbd>
 - Open files with <kbd>Ctrl</kbd>+<kbd>O</kbd> or by dropping them on the window
 
 ## Install
@@ -19,7 +21,7 @@ Download `mdview_<version>_all.deb` from the
 double-click it, or run:
 
 ```sh
-sudo apt install ./mdview_1.2.1_all.deb
+sudo apt install ./mdview_1.3.0_all.deb
 ```
 
 apt installs the dependencies (GTK 4, libadwaita, WebKitGTK 6) automatically.
@@ -40,7 +42,11 @@ mdview README.md
 | <kbd>Ctrl</kbd>+<kbd>+</kbd> / <kbd>-</kbd> / <kbd>0</kbd> | Zoom in / out / reset |
 | <kbd>Ctrl</kbd>+mouse wheel | Zoom in / out |
 | <kbd>Ctrl</kbd>+<kbd>]</kbd> / <kbd>Ctrl</kbd>+<kbd>[</kbd> | Wider / narrower page |
-| <kbd>Ctrl</kbd>+<kbd>W</kbd> / <kbd>Esc</kbd> | Close window |
+| <kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>Alt</kbd>+<kbd>→</kbd>, mouse side buttons | Back / forward |
+| <kbd>Ctrl</kbd>+<kbd>F</kbd> | Find in document |
+| <kbd>Enter</kbd> / <kbd>Shift</kbd>+<kbd>Enter</kbd>, <kbd>Ctrl</kbd>+<kbd>G</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> | Next / previous match |
+| <kbd>Esc</kbd> | Close the find bar, or the window |
+| <kbd>Ctrl</kbd>+<kbd>W</kbd> | Close window |
 | <kbd>Ctrl</kbd>+<kbd>Q</kbd> | Quit         |
 
 ## Development

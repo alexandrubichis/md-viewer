@@ -72,6 +72,18 @@ function fitWideBlocks() {
   }
 }
 
+// Report the scroll position, so the app's back/forward history can
+// return to the same place.
+let scrollPending = false;
+window.addEventListener("scroll", () => {
+  if (scrollPending) return;
+  scrollPending = true;
+  requestAnimationFrame(() => {
+    scrollPending = false;
+    window.webkit.messageHandlers.mdview.postMessage(window.scrollY);
+  });
+});
+
 let fitPending = false;
 window.addEventListener("resize", () => {
   if (fitPending) return;
@@ -92,11 +104,15 @@ window.mdview = {
     markTaskLists();
     wrapTables();
     fitWideBlocks();
-    if (keepScroll) {
-      window.scrollTo(0, y);
-    } else if (location.hash) {
-      document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
-    }
+    if (keepScroll) window.scrollTo(0, y);
+  },
+
+  scrollToId(id) {
+    const target =
+      document.getElementById(id) ||
+      document.getElementsByName(id)[0] ||
+      document.getElementById(slugify(id));
+    target?.scrollIntoView();
   },
 
   setTheme(dark, accent, link) {

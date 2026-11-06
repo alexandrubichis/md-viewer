@@ -14,7 +14,7 @@ from gi.repository import Adw, Gdk, Gio, GLib, Gtk, WebKit  # noqa: E402
 
 APP_ID = "io.github.alexandrubichis.MdView"
 APP_NAME = "MD Viewer"
-VERSION = "1.2.1"
+VERSION = "1.3.0"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 ASSETS = os.path.join(HERE, "assets")
@@ -33,6 +33,9 @@ DEFAULT_ACCENT = "#3584e4"
 DEFAULT_LINK = {False: "#1c71d8", True: "#78aeed"}
 
 ZOOM_MIN, ZOOM_MAX, ZOOM_STEP = 0.5, 3.0, 0.1
+
+FIND_OPTIONS = WebKit.FindOptions.CASE_INSENSITIVE | WebKit.FindOptions.WRAP_AROUND
+FIND_MAX_MATCHES = 1000
 
 PAGE_WIDTHS = ("narrow", "normal", "wide", "full")
 THEMES = {
@@ -124,6 +127,12 @@ class Window(Adw.ApplicationWindow):
         self._page_ready = False
         self._monitor = None
         self._reload_id = 0
+        # History entries are (file, scroll_y); scroll_y is kept up to date
+        # by the page, so leaving a page can record where the reader was.
+        self._back = []
+        self._forward = []
+        self._scroll_y = 0.0
+        self._pending_position = None
 
         with open(os.path.join(ASSETS, "template.html"), encoding="utf-8") as f:
             assets_uri = Gio.File.new_for_path(ASSETS).get_uri()
@@ -144,17 +153,41 @@ class Window(Adw.ApplicationWindow):
         self.title = Adw.WindowTitle(title=APP_NAME)
 
         header = Adw.HeaderBar(title_widget=self.title)
+        nav = Gtk.Box(css_classes=["linked"])
+        nav.append(
+            Gtk.Button(
+                icon_name="go-previous-symbolic",
+                tooltip_text="Back (Alt+←)",
+                action_name="win.back",
+            )
+        )
+        nav.append(
+            Gtk.Button(
+                icon_name="go-next-symbolic",
+                tooltip_text="Forward (Alt+→)",
+                action_name="win.forward",
+            )
+        )
+        header.pack_start(nav)
         open_button = Gtk.Button(
             icon_name="document-open-symbolic",
             tooltip_text="Open… (Ctrl+O)",
             action_name="win.open",
         )
         header.pack_start(open_button)
+        header.pack_end(
+            Gtk.ToggleButton(
+                icon_name="edit-find-symbolic",
+                tooltip_text="Find (Ctrl+F)",
+                action_name="win.find-bar",
+            )
+        )
 
         menu = Gio.Menu()
         section = Gio.Menu()
         section.append("Open…", "win.open")
         section.append("Reload", "win.reload")
+        section.append("Find…", "win.find")
         menu.append_section(None, section)
         section = Gio.Menu()
         section.append("Zoom In", "win.zoom-in")
@@ -198,6 +231,14 @@ class Window(Adw.ApplicationWindow):
         self.view.connect("load-changed", self._on_load_changed)
         self.view.connect("decide-policy", self._on_decide_policy)
         self.view.connect("context-menu", self._on_context_menu)
+        content = self.view.get_user_content_manager()
+        content.register_script_message_handler("mdview", None)
+        content.connect("script-message-received::mdview", self._on_page_message)
+
+        self.finder = self.view.get_find_controller()
+        self.finder.connect("counted-matches", self._on_counted_matches)
+        self.finder.connect("found-text", lambda *_: self.find_entry.remove_css_class("error"))
+        self.finder.connect("failed-to-find-text", lambda *_: self.find_entry.add_css_class("error"))
 
         open_button2 = Gtk.Button(
             label="Open File…",
@@ -218,9 +259,17 @@ class Window(Adw.ApplicationWindow):
         self.stack.add_named(self.error_page, "error")
         self.stack.add_named(self.view, "document")
 
-        toolbar = Adw.ToolbarView(content=self.stack)
+        self.toasts = Adw.ToastOverlay(child=self.stack)
+        toolbar = Adw.ToolbarView(content=self.toasts)
         toolbar.add_top_bar(header)
+        toolbar.add_top_bar(self._build_find_bar())
         self.set_content(toolbar)
+
+        # Mouse side buttons go back and forward.
+        buttons = Gtk.GestureClick(button=0)
+        buttons.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        buttons.connect("pressed", self._on_mouse_button)
+        self.add_controller(buttons)
 
         # Capture phase, so dropped files reach us before the web view.
         drop = Gtk.DropTarget.new(Gdk.FileList, Gdk.DragAction.COPY)
@@ -237,6 +286,51 @@ class Window(Adw.ApplicationWindow):
         scroll.connect("scroll", self._on_scroll)
         self.add_controller(scroll)
 
+    def _build_find_bar(self):
+        self.find_entry = Gtk.SearchEntry(
+            placeholder_text="Find in document", hexpand=True
+        )
+        self.find_entry.connect("search-changed", lambda *_: self._find())
+        self.find_entry.connect("activate", lambda *_: self._find_step(1))
+        self.find_entry.connect("next-match", lambda *_: self._find_step(1))
+        self.find_entry.connect("previous-match", lambda *_: self._find_step(-1))
+        shortcuts = Gtk.ShortcutController()
+        shortcuts.add_shortcut(
+            Gtk.Shortcut(
+                trigger=Gtk.ShortcutTrigger.parse_string("<Shift>Return"),
+                action=Gtk.CallbackAction.new(lambda *_: self._find_step(-1) or True),
+            )
+        )
+        self.find_entry.add_controller(shortcuts)
+
+        self.find_count = Gtk.Label(css_classes=["dim-label", "numeric"])
+        box = Gtk.Box(spacing=6)
+        box.append(self.find_entry)
+        box.append(self.find_count)
+        steps = Gtk.Box(css_classes=["linked"])
+        steps.append(
+            Gtk.Button(
+                icon_name="go-up-symbolic",
+                tooltip_text="Previous Match (Shift+Enter)",
+                action_name="win.find-previous",
+            )
+        )
+        steps.append(
+            Gtk.Button(
+                icon_name="go-down-symbolic",
+                tooltip_text="Next Match (Enter)",
+                action_name="win.find-next",
+            )
+        )
+        box.append(steps)
+
+        self.find_bar = Gtk.SearchBar(
+            child=Adw.Clamp(child=box, maximum_size=600), show_close_button=True
+        )
+        self.find_bar.connect_entry(self.find_entry)
+        self.find_bar.connect("notify::search-mode-enabled", self._on_find_bar_toggled)
+        return self.find_bar
+
     def _add_actions(self):
         for name, callback in (
             ("open", self._on_open),
@@ -244,20 +338,84 @@ class Window(Adw.ApplicationWindow):
             ("zoom-in", lambda *_: self._zoom(ZOOM_STEP)),
             ("zoom-out", lambda *_: self._zoom(-ZOOM_STEP)),
             ("zoom-reset", lambda *_: self._zoom(None)),
+            ("back", lambda *_: self.go_back()),
+            ("forward", lambda *_: self.go_forward()),
+            ("find", lambda *_: self._open_find()),
+            ("find-next", lambda *_: self._find_step(1)),
+            ("find-previous", lambda *_: self._find_step(-1)),
+            ("escape", lambda *_: self._on_escape()),
         ):
             action = Gio.SimpleAction(name=name)
             action.connect("activate", callback)
             self.add_action(action)
+        # The header bar toggle button mirrors the find bar.
+        self.add_action(Gio.PropertyAction.new("find-bar", self.find_bar, "search-mode-enabled"))
+        self._update_history_actions()
 
     # Opening files
 
-    def open_file(self, gfile):
+    def open_file(self, gfile, fragment=None):
+        """Open a file, or a heading in it, as a new history entry."""
+        current = self._current_entry()
+        position = ("id", fragment) if fragment else None
+        if not self._show(gfile, position):
+            return
+        if current is not None:
+            self._back.append(current)
+            self._forward.clear()
+        self._update_history_actions()
+
+    def go_back(self):
+        self._go(self._back, self._forward)
+
+    def go_forward(self):
+        self._go(self._forward, self._back)
+
+    def _go(self, source, target):
+        if not source:
+            return
+        gfile, scroll_y = source.pop()
+        current = self._current_entry()
+        if self._show(gfile, ("y", scroll_y)) and current is not None:
+            target.append(current)
+        self._update_history_actions()
+
+    def _current_entry(self):
+        return None if self.file is None else (self.file, self._scroll_y)
+
+    def _update_history_actions(self):
+        self.lookup_action("back").set_enabled(bool(self._back))
+        self.lookup_action("forward").set_enabled(bool(self._forward))
+
+    def _show(self, gfile, position):
+        """Show gfile and move to position: None (top), ("y", px) or ("id", anchor)."""
+        if self.file is not None and gfile.equal(self.file) and self._page_ready:
+            self._apply_position(position)
+            return True
+        if not self._load(gfile):
+            return False
+        self._pending_position = position
+        return True
+
+    def _apply_position(self, position):
+        if position is None:
+            self._run_js("window.scrollTo(0, 0);")
+        elif position[0] == "y":
+            self._run_js(f"window.scrollTo(0, {float(position[1])});")
+        else:
+            self._run_js(f"mdview.scrollToId({json.dumps(position[1])});")
+
+    def _load(self, gfile):
         try:
             data, _etag = gfile.load_contents(None)[1:]
         except GLib.Error as e:
-            self._show_error(gfile, e.message)
-            return
+            if self.file is None:
+                self._show_error(gfile, e.message)
+            else:  # Keep the current document; just say what went wrong.
+                self.toasts.add_toast(Adw.Toast(title=f"Could not open {gfile.get_basename()}"))
+            return False
         self.file = gfile
+        self._scroll_y = 0.0
         self._text = data.decode("utf-8", errors="replace").lstrip("﻿")
         self._watch(gfile)
 
@@ -270,6 +428,7 @@ class Window(Adw.ApplicationWindow):
         self._page_ready = False
         self.view.load_html(self._template, self._base_uri)
         self.stack.set_visible_child_name("document")
+        return True
 
     def reload(self):
         if self.file is None:
@@ -322,6 +481,61 @@ class Window(Adw.ApplicationWindow):
             self.get_application().open(files[1:], "")
         return True
 
+    # Find in document
+
+    def _open_find(self):
+        self.find_bar.set_search_mode(True)
+        self.find_entry.grab_focus()
+        self.find_entry.select_region(0, -1)
+
+    def _on_find_bar_toggled(self, *_):
+        if self.find_bar.get_search_mode():
+            self._find()
+        else:
+            self.finder.search_finish()
+            self.find_count.set_label("")
+            self.view.grab_focus()
+
+    def _find(self):
+        text = self.find_entry.get_text()
+        if not text or not self._page_ready:
+            self.finder.search_finish()
+            self.find_count.set_label("")
+            self.find_entry.remove_css_class("error")
+            return
+        self.finder.search(text, FIND_OPTIONS, FIND_MAX_MATCHES)
+        self.finder.count_matches(text, FIND_OPTIONS, FIND_MAX_MATCHES)
+
+    def _find_step(self, step):
+        if not self.find_bar.get_search_mode() or not self.find_entry.get_text():
+            self._open_find()
+            return
+        if step > 0:
+            self.finder.search_next()
+        else:
+            self.finder.search_previous()
+
+    def _on_counted_matches(self, _finder, count):
+        if count == 0:
+            label = "No matches"
+        elif count == 1:
+            label = "1 match"
+        elif count >= FIND_MAX_MATCHES:
+            label = f"{FIND_MAX_MATCHES}+ matches"
+        else:
+            label = f"{count} matches"
+        self.find_count.set_label(label)
+        if count == 0:
+            self.find_entry.add_css_class("error")
+        else:
+            self.find_entry.remove_css_class("error")
+
+    def _on_escape(self):
+        if self.find_bar.get_search_mode():
+            self.find_bar.set_search_mode(False)
+        else:
+            self.close()
+
     # Live reload
 
     def _watch(self, gfile):
@@ -359,12 +573,22 @@ class Window(Adw.ApplicationWindow):
 
     # Web view
 
-    def _run_js(self, script):
-        self.view.evaluate_javascript(script, -1, None, None, None, None, None)
+    def _run_js(self, script, callback=None):
+        self.view.evaluate_javascript(script, -1, None, None, None, callback, None)
 
     def _push_render(self, keep_scroll):
         args = f"{json.dumps(self._text)}, {json.dumps(keep_scroll)}"
-        self._run_js(f"mdview.render({args});")
+        # Re-run an open search, since rendering replaces the highlighted text.
+        self._run_js(f"mdview.render({args});", lambda *_: self._refresh_find())
+
+    def _refresh_find(self):
+        if self.find_bar.get_search_mode():
+            self._find()
+
+    def _on_page_message(self, _manager, value):
+        # The page only ever sends its scroll position.
+        if value.is_number():
+            self._scroll_y = value.to_double()
 
     def _push_theme(self):
         style = Adw.StyleManager.get_default()
@@ -394,16 +618,23 @@ class Window(Adw.ApplicationWindow):
             self._push_theme()
             self.push_page_width()
             self._push_render(keep_scroll=False)
+            if self._pending_position is not None:
+                self._apply_position(self._pending_position)
+                self._pending_position = None
 
     def _on_decide_policy(self, _view, decision, decision_type):
         if decision_type == WebKit.PolicyDecisionType.RESPONSE:
             return False
-        uri = decision.get_navigation_action().get_request().get_uri()
+        action = decision.get_navigation_action()
+        uri = action.get_request().get_uri()
         if (
             decision_type == WebKit.PolicyDecisionType.NAVIGATION_ACTION
+            and action.get_navigation_type() != WebKit.NavigationType.LINK_CLICKED
             and uri.split("#", 1)[0] in (self._base_uri, "about:blank")
         ):
-            return False  # Our own page, or an anchor link within it.
+            return False  # Loading our own page.
+        # Every link, including "#heading" ones, goes through _follow_link,
+        # so it can be recorded in the back/forward history.
         decision.ignore()
         self._follow_link(uri)
         return True
@@ -411,9 +642,10 @@ class Window(Adw.ApplicationWindow):
     def _follow_link(self, uri):
         scheme = (GLib.Uri.peek_scheme(uri) or "").lower()
         if scheme == "file":
-            gfile = Gio.File.new_for_uri(uri.split("#", 1)[0])
+            page, _, fragment = uri.partition("#")
+            gfile = Gio.File.new_for_uri(page)
             if is_markdown(gfile):
-                self.open_file(gfile)
+                self.open_file(gfile, GLib.Uri.unescape_string(fragment) or None)
             else:
                 Gtk.FileLauncher(file=gfile).launch(self, None, None)
         elif scheme in ("http", "https", "mailto", "ftp"):
@@ -424,6 +656,16 @@ class Window(Adw.ApplicationWindow):
             if item.get_stock_action() not in KEEP_MENU_ACTIONS:
                 menu.remove(item)
         return menu.get_n_items() == 0  # True suppresses an empty menu.
+
+    def _on_mouse_button(self, gesture, _n_press, _x, _y):
+        button = gesture.get_current_button()
+        if button == 8:
+            self.go_back()
+        elif button == 9:
+            self.go_forward()
+        else:
+            return
+        gesture.set_state(Gtk.EventSequenceState.CLAIMED)
 
     def _on_scroll(self, controller, _dx, dy):
         ctrl = controller.get_current_event_state() & Gdk.ModifierType.CONTROL_MASK
@@ -483,7 +725,13 @@ class Application(Adw.Application):
             ("win.zoom-reset", ["<Ctrl>0", "<Ctrl>KP_0"]),
             ("app.wider", ["<Ctrl>bracketright"]),
             ("app.narrower", ["<Ctrl>bracketleft"]),
-            ("window.close", ["<Ctrl>w", "Escape"]),
+            ("win.back", ["<Alt>Left", "<Alt>KP_Left", "Back"]),
+            ("win.forward", ["<Alt>Right", "<Alt>KP_Right", "Forward"]),
+            ("win.find", ["<Ctrl>f"]),
+            ("win.find-next", ["<Ctrl>g", "F3"]),
+            ("win.find-previous", ["<Ctrl><Shift>g", "<Shift>F3"]),
+            ("win.escape", ["Escape"]),  # Closes the find bar, else the window.
+            ("window.close", ["<Ctrl>w"]),
             ("app.quit", ["<Ctrl>q"]),
         ):
             self.set_accels_for_action(action, accels)
