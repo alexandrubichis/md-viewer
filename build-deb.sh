@@ -10,13 +10,15 @@ ROOT=build/mdview_${VERSION}_all
 rm -rf build
 mkdir -p "$ROOT/DEBIAN" "$ROOT/usr/bin" "$ROOT/usr/share/mdview" \
     "$ROOT/usr/share/applications" "$ROOT/usr/share/metainfo" \
-    "$ROOT/usr/share/icons/hicolor/scalable/apps" "$ROOT/usr/share/doc/mdview"
+    "$ROOT/usr/share/icons/hicolor/scalable/apps" "$ROOT/usr/share/icons/hicolor/scalable/actions" \
+    "$ROOT/usr/share/doc/mdview"
 
 cp mdview.py "$ROOT/usr/share/mdview/"
 cp -r assets "$ROOT/usr/share/mdview/"
 cp data/$APP_ID.desktop "$ROOT/usr/share/applications/"
 cp data/$APP_ID.metainfo.xml "$ROOT/usr/share/metainfo/"
 cp data/icons/hicolor/scalable/apps/$APP_ID.svg "$ROOT/usr/share/icons/hicolor/scalable/apps/"
+cp data/icons/hicolor/scalable/actions/*.svg "$ROOT/usr/share/icons/hicolor/scalable/actions/"
 cp packaging/copyright "$ROOT/usr/share/doc/mdview/"
 cp CHANGELOG.md "$ROOT/usr/share/doc/mdview/"
 

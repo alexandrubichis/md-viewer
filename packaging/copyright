@@ -16,3 +16,7 @@ License: Apache-2.0 or MPL-2.0
 Files: assets/vendor/highlight.min.js assets/vendor/hljs-*.css
 Copyright: 2006-2024 Josh Goebel and other contributors
 License: BSD-3-Clause
+
+Files: assets/vendor/mermaid.min.js
+Copyright: 2014-2024 Knut Sveidqvist and Mermaid contributors
+License: MIT

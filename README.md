@@ -5,9 +5,10 @@ window. No browser, no editor.
 
 - Follows the system light/dark style and accent color, like other GNOME apps,
   or a fixed Light or Dark style chosen in the menu
-- Adjustable page width (Narrow, Normal, Wide, Full Width); wide tables and
-  code blocks grow wider instead of scrolling sideways
-- Tables, task lists and syntax-highlighted code
+- Adjustable page width (Narrow, Normal, Wide, Full Width); tables and
+  diagrams that don't fit scroll sideways
+- Tables, task lists, syntax-highlighted code and Mermaid diagrams, with a
+  full-size zoomable view for each diagram
 - Reloads automatically when the file is saved, keeping your place
 - Links open in your browser; links to other `.md` files open in the viewer,
   with back and forward like a browser
@@ -21,7 +22,7 @@ Download `mdview_<version>_all.deb` from the
 double-click it, or run:
 
 ```sh
-sudo apt install ./mdview_1.3.0_all.deb
+sudo apt install ./mdview_1.4.0_all.deb
 ```
 
 apt installs the dependencies (GTK 4, libadwaita, WebKitGTK 6) automatically.
@@ -76,5 +77,6 @@ tools/snapshot.py samples/test.md /tmp/shot dark   # or light
 ## Credits
 
 Markdown rendering uses [marked](https://github.com/markedjs/marked),
-[DOMPurify](https://github.com/cure53/DOMPurify) and
-[highlight.js](https://highlightjs.org/), included in `assets/vendor/`.
+[DOMPurify](https://github.com/cure53/DOMPurify),
+[highlight.js](https://highlightjs.org/) and
+[Mermaid](https://mermaid.js.org/), included in `assets/vendor/`.

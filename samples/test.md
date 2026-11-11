@@ -66,6 +66,23 @@ Plain block with no language.
 settings = {"page_width": "normal", "window_width": 860, "window_height": 920, "maximized": False, "comment": "a long line"}
 ```
 
+## Diagrams
+
+```mermaid
+flowchart LR
+    A[Open .md file] --> B{Has diagrams?}
+    B -->|Yes| C[Load Mermaid]
+    B -->|No| D[Render text only]
+    C --> D
+```
+
+A diagram with a syntax error is shown as code:
+
+```mermaid
+flowchart LR
+    A --> --> B
+```
+
 ## Image
 
 ![Sample image](image.svg)

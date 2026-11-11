@@ -4,14 +4,36 @@ All notable changes to MD Viewer are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-11-11
+
+### Added
+- Mermaid diagrams (```` ```mermaid ```` blocks): flowcharts, sequence
+  diagrams, Gantt charts and the other Mermaid types. They follow the light or
+  dark style, are redrawn when it changes, and work offline. The diagram
+  library is loaded only for documents that contain diagrams.
+- Full-size diagram viewer: the expand button on a diagram (or a
+  double-click) shows it alone in the window, with zoom in / out / actual size
+  / fit, dragging to move around and <kbd>Ctrl</kbd> + mouse wheel to zoom at
+  the pointer. Back, <kbd>Esc</kbd> or <kbd>Alt</kbd>+<kbd>←</kbd> return to
+  the document.
+- A diagram with a syntax error is shown as code, with the error below it.
+
+### Changed
+- Tables and diagrams keep the width chosen in Page Width and scroll sideways
+  when they don't fit, instead of growing wider than the text. A diagram is
+  shrunk to at most 75% before it scrolls, so its text stays readable.
+
 ## [1.3.0] - 2026-11-06
 
 ### Added
 - Back and forward through followed links, returning to the same scroll
   position: header bar buttons, <kbd>Alt</kbd>+<kbd>←</kbd> /
   <kbd>Alt</kbd>+<kbd>→</kbd>, or the mouse side buttons. Links to headings
-  in the same document are part of the history too.
-- Find in document (<kbd>Ctrl</kbd>+<kbd>F</kbd>) with a match count.
+  in the same document are part of the history too. The buttons appear only
+  after a link has been followed; opening a file from the Open dialog, by
+  drag and drop or from Files starts a fresh history.
+- Find in document (<kbd>Ctrl</kbd>+<kbd>F</kbd>): all matches are
+  highlighted, the current one in the accent color, with a "1 of 20" position.
   <kbd>Enter</kbd> / <kbd>Shift</kbd>+<kbd>Enter</kbd> or
   <kbd>Ctrl</kbd>+<kbd>G</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>
   go to the next / previous match.
@@ -61,6 +83,7 @@ All notable changes to MD Viewer are listed here. The format follows
 - Raw HTML in documents is sanitized; scripts don't run.
 - `.deb` package with app icon, menu entry and App Center metadata.
 
+[1.4.0]: https://github.com/alexandrubichis/md-viewer/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/alexandrubichis/md-viewer/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/alexandrubichis/md-viewer/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/alexandrubichis/md-viewer/compare/v1.1.0...v1.2.0

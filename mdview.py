@@ -14,7 +14,7 @@ from gi.repository import Adw, Gdk, Gio, GLib, Gtk, WebKit  # noqa: E402
 
 APP_ID = "io.github.alexandrubichis.MdView"
 APP_NAME = "MD Viewer"
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 ASSETS = os.path.join(HERE, "assets")
@@ -33,9 +33,6 @@ DEFAULT_ACCENT = "#3584e4"
 DEFAULT_LINK = {False: "#1c71d8", True: "#78aeed"}
 
 ZOOM_MIN, ZOOM_MAX, ZOOM_STEP = 0.5, 3.0, 0.1
-
-FIND_OPTIONS = WebKit.FindOptions.CASE_INSENSITIVE | WebKit.FindOptions.WRAP_AROUND
-FIND_MAX_MATCHES = 1000
 
 PAGE_WIDTHS = ("narrow", "normal", "wide", "full")
 THEMES = {
@@ -133,6 +130,7 @@ class Window(Adw.ApplicationWindow):
         self._forward = []
         self._scroll_y = 0.0
         self._pending_position = None
+        self._diagram_open = False  # The page's full-size diagram viewer.
 
         with open(os.path.join(ASSETS, "template.html"), encoding="utf-8") as f:
             assets_uri = Gio.File.new_for_path(ASSETS).get_uri()
@@ -153,7 +151,7 @@ class Window(Adw.ApplicationWindow):
         self.title = Adw.WindowTitle(title=APP_NAME)
 
         header = Adw.HeaderBar(title_widget=self.title)
-        nav = Gtk.Box(css_classes=["linked"])
+        self.nav_buttons = nav = Gtk.Box(css_classes=["linked"], visible=False)
         nav.append(
             Gtk.Button(
                 icon_name="go-previous-symbolic",
@@ -235,10 +233,6 @@ class Window(Adw.ApplicationWindow):
         content.register_script_message_handler("mdview", None)
         content.connect("script-message-received::mdview", self._on_page_message)
 
-        self.finder = self.view.get_find_controller()
-        self.finder.connect("counted-matches", self._on_counted_matches)
-        self.finder.connect("found-text", lambda *_: self.find_entry.remove_css_class("error"))
-        self.finder.connect("failed-to-find-text", lambda *_: self.find_entry.add_css_class("error"))
 
         open_button2 = Gtk.Button(
             label="Open File…",
@@ -304,29 +298,28 @@ class Window(Adw.ApplicationWindow):
         self.find_entry.add_controller(shortcuts)
 
         self.find_count = Gtk.Label(css_classes=["dim-label", "numeric"])
+        # Arrows and close sit right next to the entry, not at the far end
+        # of the bar where GtkSearchBar puts its own close button.
+        buttons = Gtk.Box()
+        for icon, tooltip, action in (
+            ("mdview-arrow-up-symbolic", "Previous Match (Shift+Enter)", "win.find-previous"),
+            ("mdview-arrow-down-symbolic", "Next Match (Enter)", "win.find-next"),
+            ("window-close-symbolic", "Close (Esc)", "win.find-close"),
+        ):
+            buttons.append(
+                Gtk.Button(
+                    icon_name=icon,
+                    tooltip_text=tooltip,
+                    action_name=action,
+                    css_classes=["flat", "circular"],
+                )
+            )
         box = Gtk.Box(spacing=6)
         box.append(self.find_entry)
         box.append(self.find_count)
-        steps = Gtk.Box(css_classes=["linked"])
-        steps.append(
-            Gtk.Button(
-                icon_name="go-up-symbolic",
-                tooltip_text="Previous Match (Shift+Enter)",
-                action_name="win.find-previous",
-            )
-        )
-        steps.append(
-            Gtk.Button(
-                icon_name="go-down-symbolic",
-                tooltip_text="Next Match (Enter)",
-                action_name="win.find-next",
-            )
-        )
-        box.append(steps)
+        box.append(buttons)
 
-        self.find_bar = Gtk.SearchBar(
-            child=Adw.Clamp(child=box, maximum_size=600), show_close_button=True
-        )
+        self.find_bar = Gtk.SearchBar(child=Adw.Clamp(child=box, maximum_size=600))
         self.find_bar.connect_entry(self.find_entry)
         self.find_bar.connect("notify::search-mode-enabled", self._on_find_bar_toggled)
         return self.find_bar
@@ -344,6 +337,7 @@ class Window(Adw.ApplicationWindow):
             ("find-next", lambda *_: self._find_step(1)),
             ("find-previous", lambda *_: self._find_step(-1)),
             ("escape", lambda *_: self._on_escape()),
+            ("find-close", lambda *_: self.find_bar.set_search_mode(False)),
         ):
             action = Gio.SimpleAction(name=name)
             action.connect("activate", callback)
@@ -354,18 +348,27 @@ class Window(Adw.ApplicationWindow):
 
     # Opening files
 
-    def open_file(self, gfile, fragment=None):
-        """Open a file, or a heading in it, as a new history entry."""
+    def open_file(self, gfile, fragment=None, from_link=False):
+        """Open a file, or a heading in it.
+
+        Following a link adds a history entry; opening a file any other way
+        (Open dialog, drag and drop, Files) starts a fresh history.
+        """
         current = self._current_entry()
         position = ("id", fragment) if fragment else None
         if not self._show(gfile, position):
             return
-        if current is not None:
+        if from_link and current is not None:
             self._back.append(current)
-            self._forward.clear()
+        elif not from_link:
+            self._back.clear()
+        self._forward.clear()
         self._update_history_actions()
 
     def go_back(self):
+        if self._diagram_open:
+            self._close_diagram()
+            return
         self._go(self._back, self._forward)
 
     def go_forward(self):
@@ -386,6 +389,8 @@ class Window(Adw.ApplicationWindow):
     def _update_history_actions(self):
         self.lookup_action("back").set_enabled(bool(self._back))
         self.lookup_action("forward").set_enabled(bool(self._forward))
+        # The buttons only show once a link has been followed.
+        self.nav_buttons.set_visible(bool(self._back or self._forward))
 
     def _show(self, gfile, position):
         """Show gfile and move to position: None (top), ("y", px) or ("id", anchor)."""
@@ -399,9 +404,9 @@ class Window(Adw.ApplicationWindow):
 
     def _apply_position(self, position):
         if position is None:
-            self._run_js("window.scrollTo(0, 0);")
+            self._run_js("mdview.scrollToY(0);")
         elif position[0] == "y":
-            self._run_js(f"window.scrollTo(0, {float(position[1])});")
+            self._run_js(f"mdview.scrollToY({float(position[1])});")
         else:
             self._run_js(f"mdview.scrollToId({json.dumps(position[1])});")
 
@@ -416,6 +421,7 @@ class Window(Adw.ApplicationWindow):
             return False
         self.file = gfile
         self._scroll_y = 0.0
+        self._diagram_open = False
         self._text = data.decode("utf-8", errors="replace").lstrip("﻿")
         self._watch(gfile)
 
@@ -484,6 +490,7 @@ class Window(Adw.ApplicationWindow):
     # Find in document
 
     def _open_find(self):
+        self._close_diagram()  # Find searches the page, not the viewer.
         self.find_bar.set_search_mode(True)
         self.find_entry.grab_focus()
         self.find_entry.select_region(0, -1)
@@ -492,49 +499,55 @@ class Window(Adw.ApplicationWindow):
         if self.find_bar.get_search_mode():
             self._find()
         else:
-            self.finder.search_finish()
-            self.find_count.set_label("")
+            self._find("")
             self.view.grab_focus()
 
-    def _find(self):
-        text = self.find_entry.get_text()
-        if not text or not self._page_ready:
-            self.finder.search_finish()
-            self.find_count.set_label("")
-            self.find_entry.remove_css_class("error")
-            return
-        self.finder.search(text, FIND_OPTIONS, FIND_MAX_MATCHES)
-        self.finder.count_matches(text, FIND_OPTIONS, FIND_MAX_MATCHES)
+    # The search runs in the page (viewer.js), which highlights all matches
+    # and reports [current, total] for the "1 of 20" label.
+
+    def _find(self, text=None):
+        if text is None:
+            text = self.find_entry.get_text()
+        if self._page_ready:
+            self._run_js(f"mdview.find({json.dumps(text)});", self._on_find_result)
 
     def _find_step(self, step):
         if not self.find_bar.get_search_mode() or not self.find_entry.get_text():
             self._open_find()
             return
-        if step > 0:
-            self.finder.search_next()
-        else:
-            self.finder.search_previous()
+        if self._page_ready:
+            self._run_js(f"mdview.findStep({int(step)});", self._on_find_result)
 
-    def _on_counted_matches(self, _finder, count):
-        if count == 0:
+    def _on_find_result(self, view, result, *_):
+        try:
+            current, total = json.loads(view.evaluate_javascript_finish(result).to_json(0))
+        except (GLib.Error, TypeError, ValueError):
+            return
+        if not self.find_bar.get_search_mode() or not self.find_entry.get_text():
+            label = ""
+        elif total == 0:
             label = "No matches"
-        elif count == 1:
-            label = "1 match"
-        elif count >= FIND_MAX_MATCHES:
-            label = f"{FIND_MAX_MATCHES}+ matches"
         else:
-            label = f"{count} matches"
+            label = f"{current} of {total}"
         self.find_count.set_label(label)
-        if count == 0:
+        if label == "No matches":
             self.find_entry.add_css_class("error")
         else:
             self.find_entry.remove_css_class("error")
 
     def _on_escape(self):
-        if self.find_bar.get_search_mode():
+        # Esc closes whatever is on top: the diagram viewer, then the find bar,
+        # then the window.
+        if self._diagram_open:
+            self._close_diagram()
+        elif self.find_bar.get_search_mode():
             self.find_bar.set_search_mode(False)
         else:
             self.close()
+
+    def _close_diagram(self):
+        if self._diagram_open:
+            self._run_js("mdview.closeDiagram();")
 
     # Live reload
 
@@ -586,9 +599,18 @@ class Window(Adw.ApplicationWindow):
             self._find()
 
     def _on_page_message(self, _manager, value):
-        # The page only ever sends its scroll position.
-        if value.is_number():
-            self._scroll_y = value.to_double()
+        # The page sends {"type": "scroll", "y": ...} and
+        # {"type": "diagram", "open": ...}; anything else is ignored.
+        try:
+            message = json.loads(value.to_json(0))
+        except (TypeError, ValueError):
+            return
+        if not isinstance(message, dict):
+            return
+        if message.get("type") == "scroll" and isinstance(message.get("y"), (int, float)):
+            self._scroll_y = float(message["y"])
+        elif message.get("type") == "diagram":
+            self._diagram_open = message.get("open") is True
 
     def _push_theme(self):
         style = Adw.StyleManager.get_default()
@@ -645,7 +667,9 @@ class Window(Adw.ApplicationWindow):
             page, _, fragment = uri.partition("#")
             gfile = Gio.File.new_for_uri(page)
             if is_markdown(gfile):
-                self.open_file(gfile, GLib.Uri.unescape_string(fragment) or None)
+                self.open_file(
+                    gfile, GLib.Uri.unescape_string(fragment) or None, from_link=True
+                )
             else:
                 Gtk.FileLauncher(file=gfile).launch(self, None, None)
         elif scheme in ("http", "https", "mailto", "ftp"):
@@ -671,10 +695,16 @@ class Window(Adw.ApplicationWindow):
         ctrl = controller.get_current_event_state() & Gdk.ModifierType.CONTROL_MASK
         if not ctrl or dy == 0 or self.stack.get_visible_child_name() != "document":
             return False
+        if self._diagram_open:
+            return False  # The diagram viewer zooms itself, at the pointer.
         self._zoom(-ZOOM_STEP if dy > 0 else ZOOM_STEP)
         return True
 
     def _zoom(self, delta):
+        if self._diagram_open:
+            step = 0 if delta is None else (1 if delta > 0 else -1)
+            self._run_js(f"mdview.zoomDiagram({step});")
+            return
         if delta is None:
             level = 1.0
         else:

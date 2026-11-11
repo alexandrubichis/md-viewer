@@ -58,6 +58,19 @@ main > :first-child {
   margin-top: 0;
 }
 
+/* Find in document */
+
+mark.find {
+  color: inherit;
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 3px;
+}
+
+mark.find.current {
+  color: #ffffff;
+  background: var(--accent);
+}
+
 ::selection {
   background: color-mix(in srgb, var(--accent) 30%, transparent);
 }
@@ -218,4 +231,138 @@ p > img:only-child {
   display: block;
   margin: 0 auto;
   border-radius: 10px;
+}
+
+/* Mermaid diagrams */
+
+.diagram {
+  position: relative;
+  margin: 0 0 1em;
+  text-align: center;
+}
+
+.diagram-scroll {
+  overflow-x: auto;
+}
+
+.diagram-scroll > svg {
+  height: auto;
+}
+
+.diagram.scrolls .diagram-scroll {
+  text-align: left;
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--fg-strong);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background: var(--code-bg);
+}
+
+.icon-button:active {
+  background: var(--border);
+}
+
+.diagram-expand {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--bg);
+  box-shadow: 0 0 0 1px var(--border);
+  opacity: 0.6;
+}
+
+.diagram:hover .diagram-expand,
+.diagram-expand:focus-visible {
+  opacity: 1;
+}
+
+/* Full-size diagram viewer */
+
+.viewing-diagram,
+.viewing-diagram body {
+  overflow: hidden;
+}
+
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.viewer[hidden] {
+  display: none;
+}
+
+.viewer-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.viewer-spacer {
+  flex: 1;
+}
+
+.viewer-zoom {
+  min-width: 64px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.viewer-area {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+
+.viewer-area.dragging {
+  cursor: grabbing;
+}
+
+.viewer-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.viewer-stage > svg {
+  display: block;
+}
+
+.diagram.error {
+  text-align: left;
+}
+
+.diagram-error {
+  margin: -0.5em 0 0;
+  padding: 0;
+  background: none;
+  color: #e01b24;
+  font-size: 0.8em;
+  white-space: pre-wrap;
+}
+
+:root[data-theme="dark"] .diagram-error {
+  color: #ff7b63;
 }

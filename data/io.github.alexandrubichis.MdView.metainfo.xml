@@ -27,6 +27,14 @@
     <mediatype>text/markdown</mediatype>
   </provides>
   <releases>
+    <release version="1.4.0" date="2026-11-11">
+      <description>
+        <p>Shows Mermaid diagrams: flowcharts, sequence diagrams, Gantt charts
+        and more, in light or dark style. Open a diagram at full size to zoom
+        and move around it. Tables and diagrams keep the chosen page width and
+        scroll sideways when they don't fit.</p>
+      </description>
+    </release>
     <release version="1.3.0" date="2026-11-06">
       <description>
         <p>Go back and forward through followed links, and find text in the
